@@ -1,0 +1,15 @@
+[flake8]
+import-order-style = google
+import-order-group-names = third-party, first-party
+application-import-names = canvas, models, qssstyles
+ignore = W503, F403, F405
+inline-quotes = "
+exclude = 
+    .git,
+    */migrations/*,
+    __pycache__,
+    */static/*,
+    */templates/*
+max-line-length = 79
+per-file-ignores =
+    lyceum/*/__init__.py: F401
