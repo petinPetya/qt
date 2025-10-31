@@ -2,7 +2,7 @@
 import-order-style = google
 import-order-group-names = third-party, first-party
 application-import-names = canvas, models, qssstyles
-ignore = W503, F403, F405
+ignore = W503, F403, F405, N802
 inline-quotes = "
 exclude = 
     .git,

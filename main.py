@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import sys
 
-from PyQt6.QtWidgets import QApplication
 from app import PaintApp
+from PyQt6.QtWidgets import QApplication
 
 
 if __name__ == "__main__":

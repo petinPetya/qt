@@ -22,7 +22,8 @@ class CustomGraphicsView(QGraphicsView):
         self.canvas = canvas
         self.scene = scene
         self.fitInView(
-            self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio
+            self.scene.sceneRect(),
+            Qt.AspectRatioMode.KeepAspectRatio,
         )
 
         self.setMouseTracking(True)
