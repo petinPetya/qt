@@ -1,4 +1,5 @@
 from PIL import Image, ImageEnhance
+from PyQt6 import uic
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
@@ -137,7 +138,7 @@ class PaintApp(QMainWindow):
         # self.cont.valueChanged.connect(self.set_image_contrast)
         for i in buttons2:
             # i.setSize(QSize(70, 30))
-            i.clicked.connect(self.change_filter)
+            i.clicked.connect(self.open_dialog)
             change_color_buttons.addWidget(i)
         filters.addLayout(change_color_buttons)
         edit_tab.setLayout(filters)
@@ -179,6 +180,20 @@ class PaintApp(QMainWindow):
             1,
         )
         return pil_image
+
+    @staticmethod
+    def pil_to_qimage(pil_image):
+        if pil_image.mode != "RGB":
+            pil_image = pil_image.convert("RGB")
+
+        data = pil_image.tobytes("raw", "RGB")
+        qimage = QImage(
+            data,
+            pil_image.width,
+            pil_image.height,
+            QImage.Format.Format_RGB888,
+        )
+        return qimage
 
     def add_pil_to_scene(self, imgp):
         imgq = imgp.toqimage()
@@ -224,6 +239,19 @@ class PaintApp(QMainWindow):
                 "pen_cap",
                 PaintApp.builtins_caps[key],
             )
+
+    def open_dialog(self):
+        # Тут отображение диалога
+        dialog = uic.loadUi("ui/inhance_dialog.ui")
+        dialog.setWindowTitle("Изменение фильтра")
+        img = self.qgraphicsview_to_pil(self.canvas.scene)
+        if img:
+            qimage = self.pil_to_qimage(img)
+            pixmap = QPixmap.fromImage(qimage)
+            dialog.label.setPixmap(pixmap)
+            dialog.label.setScaledContents(True)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            print("Диалог завершен OK")
 
     def change_filter(self, value):
         key = self.sender().text()
