@@ -10,9 +10,9 @@ from qssstyles.styles import *
 
 class PaintApp(QMainWindow):
     builtins_caps = {
-        "кп1": Qt.PenCapStyle.RoundCap,
-        "кп2": Qt.PenCapStyle.FlatCap,
-        "кп3": Qt.PenCapStyle.SquareCap,
+        "kp1": Qt.PenCapStyle.RoundCap,
+        "kp2": Qt.PenCapStyle.FlatCap,
+        "kp3": Qt.PenCapStyle.SquareCap,
     }
 
     builtins_filters = {
@@ -21,6 +21,8 @@ class PaintApp(QMainWindow):
         "st3": ImageEnhance.Sharpness,
         "st4": ImageEnhance.Color,
     }
+
+    names = ["roundcap", "flatcap", "squarecap"]
 
     def __init__(self):
         super().__init__()
@@ -105,11 +107,15 @@ class PaintApp(QMainWindow):
         toolbar.layout().setSpacing(8)
 
         change_cap_buttons = QHBoxLayout()
-        setattr(self, "st1", QPushButton("кп1"))
-        setattr(self, "st2", QPushButton("кп2"))
-        setattr(self, "st3", QPushButton("кп3"))
+        setattr(self, "st1", QPushButton())
+        setattr(self, "st2", QPushButton())
+        setattr(self, "st3", QPushButton())
         buttons1 = [self.st1, self.st2, self.st3]
+        cnt = 0
         for i in buttons1:
+            cnt += 1
+            i.setIcon(QIcon(f"static/{PaintApp.names[cnt - 1]}.jpg"))
+            i.setObjectName(f"kp{cnt}")
             i.clicked.connect(self.change_cap)
             i.setStyleSheet(button_cap_style)
             change_cap_buttons.addWidget(i)
@@ -122,26 +128,59 @@ class PaintApp(QMainWindow):
 
     def create_edit_widget(self):
         edit_tab = QWidget()
-        filters = QHBoxLayout()
 
-        change_color_buttons = QVBoxLayout()
-        setattr(self, "bt1", QPushButton("st1"))
-        setattr(self, "bt2", QPushButton("st2"))
-        setattr(self, "bt3", QPushButton("st3"))
-        setattr(self, "bt4", QPushButton("st4"))
-        buttons2 = [self.bt1, self.bt2, self.bt3, self.bt4]
-        # self.cont = QSlider(Qt.Orientation.Horizontal, self)
-        # self.cont.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # self.cont.setRange(0, 1000)
-        # self.cont.setValue(500)
-        # self.cont.sliderMoved.connect(self.contrast_changed)
-        # self.cont.valueChanged.connect(self.set_image_contrast)
-        for i in buttons2:
-            # i.setSize(QSize(70, 30))
-            i.clicked.connect(self.open_dialog)
-            change_color_buttons.addWidget(i)
-        filters.addLayout(change_color_buttons)
-        edit_tab.setLayout(filters)
+        main_layout = QHBoxLayout(edit_tab)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+
+        filters_container = QWidget()
+        filters_container.setStyleSheet(container_style)
+        filters_layout = QGridLayout(filters_container)
+        filters_layout.setSpacing(5)
+        filters_layout.setContentsMargins(8, 8, 8, 8)
+        filter_data = ["Контраст", "Яркость", "Резкость", "Цвета"]
+
+        for row, btn_name in enumerate(filter_data):
+            setattr(self, btn_name, QPushButton(btn_name))
+            btn = getattr(self, btn_name)
+            btn.setObjectName("st" + str(row + 1))
+            btn.setFixedSize(70, 20)
+            btn.setStyleSheet(filter_button_style)
+            btn.clicked.connect(self.open_dialog)
+            filters_layout.addWidget(btn, row, 0)
+
+        rgb_container = QWidget()
+        rgb_container.setStyleSheet(container_style)
+        rgb_layout = QVBoxLayout(rgb_container)
+        rgb_layout.setSpacing(5)
+        rgb_layout.setContentsMargins(8, 8, 8, 8)
+
+        rgb_title = QLabel("RGB Каналы")
+        rgb_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        rgb_title.setStyleSheet(
+            "font-size: 9px; font-weight: bold;"
+            "color: #495057; margin-bottom: 5px;",
+        )
+        rgb_layout.addWidget(rgb_title)
+
+        rgb_data = [
+            ("R", "rgb_red", "#dc3545"),
+            ("G", "rgb_green", "#28a745"),
+            ("B", "rgb_blue", "#007bff"),
+        ]
+
+        for text, btn_name, color in rgb_data:
+            setattr(self, btn_name, QPushButton(text))
+            btn = getattr(self, btn_name)
+            btn.setFixedSize(50, 20)
+            btn.setStyleSheet(filter_button_style)
+            btn.clicked.connect(self.open_dialog)
+            rgb_layout.addWidget(btn)
+
+        main_layout.addWidget(filters_container)
+        main_layout.addWidget(rgb_container)
+        main_layout.addStretch()
+
         self.tab_widget.addTab(edit_tab, "Фильтры")
 
     def open_file(self):
@@ -232,7 +271,8 @@ class PaintApp(QMainWindow):
     #         self.editing = False
 
     def change_cap(self, e):
-        key = self.sender().text()
+        key = self.sender().objectName()
+        print(key)
         if hasattr(self.canvas, "pen_cap"):
             setattr(
                 self.canvas,
