@@ -1,6 +1,8 @@
 name: CI
 
-on: [pull_request]
+on:
+  push:
+    branches: [main]
 
 jobs:
   flake8:
