@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>163</width>
-    <height>228</height>
+    <height>216</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,9 +16,9 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>150</y>
-     <width>121</width>
+     <x>10</x>
+     <y>170</y>
+     <width>131</width>
      <height>32</height>
     </rect>
    </property>
@@ -33,9 +33,9 @@
    <property name="geometry">
     <rect>
      <x>0</x>
-     <y>0</y>
+     <y>30</y>
      <width>160</width>
-     <height>141</height>
+     <height>111</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout">
@@ -80,6 +80,32 @@
      <widget class="QLineEdit" name="passwordAgainLineEdit"/>
     </item>
    </layout>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>60</x>
+     <y>10</y>
+     <width>51</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Регистрация</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>150</y>
+     <width>111</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Есть аккаунт? Войти...</string>
+   </property>
   </widget>
  </widget>
  <resources/>
