@@ -304,7 +304,8 @@ class PaintApp(QMainWindow):
 
         def on_slider_changed(value):
             if hasattr(dialog, "original_img") and hasattr(
-                dialog, "filter_key",
+                dialog,
+                "filter_key",
             ):
                 image_before = PaintApp.builtins_filters[dialog.filter_key](
                     dialog.original_img,
