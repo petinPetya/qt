@@ -194,25 +194,25 @@ class PaintApp(QMainWindow):
             self.canvas.load_image(file_path)
 
     def qgraphicsview_to_pil(self, scene) -> Image:
-        scene = self.canvas.scene
         if scene is None:
             return None
+
         rect = scene.sceneRect()
         image = QImage(rect.size().toSize(), QImage.Format.Format_ARGB32)
-        image.fill(0)
+        image.fill(Qt.GlobalColor.white)
         painter = QPainter(image)
-        scene.render(painter, QRectF(image.rect()), rect)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        scene.render(painter)
         painter.end()
-        pixmap = QPixmap.fromImage(image)
+        # Конвертируем QImage в PIL
+        image = image.convertToFormat(QImage.Format.Format_RGBA8888)
+        ptr = image.bits()
+        ptr.setsize(image.sizeInBytes())
 
-        qimage = pixmap.toImage()
-        buffer = qimage.bits()
-        buffer.setsize(qimage.bytesPerLine() * qimage.height())
-
-        pil_image = Image.frombuffer(
+        pil_image = Image.frombytes(
             "RGBA",
-            (qimage.width(), qimage.height()),
-            bytes(buffer),
+            (image.width(), image.height()),
+            ptr.asarray(),
             "raw",
             "RGBA",
             0,
@@ -281,23 +281,63 @@ class PaintApp(QMainWindow):
             )
 
     def open_dialog(self):
-        # Тут отображение диалога
+        sender_button = self.sender()
+        filter_key = sender_button.objectName()
+
+        # Сохраняем оригинальное изображение до любых изменений
+        self.original_before_dialog = self.qgraphicsview_to_pil(
+            self.canvas.scene,
+        )
+
         dialog = uic.loadUi("ui/inhance_dialog.ui")
         dialog.setWindowTitle("Изменение фильтра")
-        img = self.qgraphicsview_to_pil(self.canvas.scene)
-        if img:
-            qimage = self.pil_to_qimage(img)
+
+        original_img = self.original_before_dialog
+        if original_img:
+            dialog.original_img = original_img
+            dialog.filter_key = filter_key
+
+            qimage = self.pil_to_qimage(original_img)
             pixmap = QPixmap.fromImage(qimage)
             dialog.label.setPixmap(pixmap)
             dialog.label.setScaledContents(True)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            print("Диалог завершен OK")
 
-    def change_filter(self, value):
-        key = self.sender().text()
-        self.img = self.qgraphicsview_to_pil(self.canvas.scene)
-        if self.img:
-            image_before = PaintApp.builtins_filters[key](self.img)
-            print(value)
-            image_after = image_before.enhance(value / 500.0)
+        def on_slider_changed(value):
+            if hasattr(dialog, "original_img") and hasattr(
+                dialog, "filter_key",
+            ):
+                image_before = PaintApp.builtins_filters[dialog.filter_key](
+                    dialog.original_img,
+                )
+                normalized_value = (value + 50) / 50.0
+                image_after = image_before.enhance(normalized_value)
+
+                qimage_preview = self.pil_to_qimage(image_after)
+                pixmap_preview = QPixmap.fromImage(qimage_preview)
+                dialog.label.setPixmap(pixmap_preview)
+
+        dialog.horizontalSlider.valueChanged.connect(on_slider_changed)
+
+        result = dialog.exec()
+
+        if result == QDialog.DialogCode.Accepted:
+            final_value = dialog.horizontalSlider.value()
+            self.change_filter(final_value, filter_key)
+        else:
+            if hasattr(self, "original_before_dialog"):
+                self.add_pil_to_scene(self.original_before_dialog)
+                print("Изменения отменены")
+
+    def change_filter(self, value, filter_key):
+        # Используем сохраненный оригинал для чистого применения
+        if hasattr(self, "original_before_dialog"):
+            current_img = self.original_before_dialog
+        else:
+            current_img = self.qgraphicsview_to_pil(self.canvas.scene)
+
+        if current_img:
+            image_before = PaintApp.builtins_filters[filter_key](current_img)
+            normalized_value = (value + 50) / 50.0  # Костыыыыыль!
+            image_after = image_before.enhance(normalized_value)
             self.add_pil_to_scene(image_after)
+            print(f"Фильтр {filter_key} применен со значением: {value}")
