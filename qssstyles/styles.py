@@ -49,90 +49,44 @@ filter_button_style = """
 
 
 """
-{% extends "base.html" %}
-<body>
-    {% block kot %}
-    <div class="container">
-        <form method="post" class="feedback-form">
-            {% csrf_token %}
-            
-            <h2 class="form-title">Форма обратной связи</h2>
-            <!-- Цикл по видимым полям формы -->
-            {% for field in form.visible_fields %}
-                <div class="mb-3 {% if field.field.required %}required{% endif %}">
-                    <label for="{{ field.id_for_label }}" class="form-label">
-                        {{ field.label }}
-                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
-                    </label>
-                    
-                    <!-- Поле ввода -->
-                    {{ field }}
-                    
-                    <!-- Подсказка (help text) -->
-                    {% if field.help_text %}
-                        <div class="form-text">{{ field.help_text }}</div>
-                    {% endif %}
-                    
-                    <!-- Ошибки поля -->
-                    {% if field.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in field.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-            {% endfor %}
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+int MAXN = (int)1e5 + 7;
+vector<vector<int>> g(MAXN, vector<int>(MAXN, 0));
+vector<int> comp(MAXN);
 
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <button type="reset" class="btn btn-outline-secondary me-md-2">Очистить</button>
-                <button type="submit" class="btn btn-primary">Отправить</button>
-            </div>
-        </form>
-    </div>
+void dfs(int v, int num) {
+    comp[v] = num;
+    for (int u : g[v]) {
+        if (!comp[u]) {
+            dfs(u, num);
+        };
+    };
+};
 
-    <!-- Стили для полей формы -->
-    <style>
-        .feedback-form .form-control {
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 12px 15px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            width: 100%;
+int main() {
+    int n, m;
+    cin >> n >> m;
+    while (m--) {
+        int x, y;
+        cin >> x >> y;
+        g[x][y] = 1;
+        g[y][x] = 1;
+    }
+    int num = 1;
+    for (int v = 1; v < n + 1; v++) {
+        if (!comp[v]) {
+            dfs(v, num++);
         }
+    }
+    printf("%d\n", num);
+    vector<vector<int>> res(num + 1, vector<int>());
+    for (int i : comp) {
+        printf("%d %d", i, comp[i]);
+    }
+    return 0;
+}
 
-        .feedback-form .form-control:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
-
-        .feedback-form .required .form-label {
-            font-weight: 600;
-        }
-
-        .feedback-form textarea.form-control {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        .feedback-form .form-title {
-            color: #343a40;
-            margin-bottom: 30px;
-            text-align: center;
-            font-weight: 700;
-        }
-
-        .feedback-form {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 30px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-    </style>
-    {% endblock %}
-</body>
-</html>
 """
