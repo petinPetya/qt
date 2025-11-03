@@ -146,7 +146,7 @@ class PaintApp(QMainWindow):
             btn.setObjectName("st" + str(row + 1))
             btn.setFixedSize(70, 20)
             btn.setStyleSheet(filter_button_style)
-            btn.clicked.connect(self.open_dialog)
+            btn.clicked.connect(self.open_enh_dialog)
             filters_layout.addWidget(btn, row, 0)
 
         rgb_container = QWidget()
@@ -155,18 +155,11 @@ class PaintApp(QMainWindow):
         rgb_layout.setSpacing(5)
         rgb_layout.setContentsMargins(8, 8, 8, 8)
 
-        rgb_title = QLabel("RGB Каналы")
-        rgb_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        rgb_title.setStyleSheet(
-            "font-size: 9px; font-weight: bold;"
-            "color: #495057; margin-bottom: 5px;",
-        )
-        rgb_layout.addWidget(rgb_title)
-
         rgb_data = [
             ("R", "rgb_red", "#dc3545"),
             ("G", "rgb_green", "#28a745"),
             ("B", "rgb_blue", "#007bff"),
+            ("A", "rgb_alpha", "#c7b1cd"),
         ]
 
         for text, btn_name, color in rgb_data:
@@ -174,7 +167,7 @@ class PaintApp(QMainWindow):
             btn = getattr(self, btn_name)
             btn.setFixedSize(50, 20)
             btn.setStyleSheet(filter_button_style)
-            btn.clicked.connect(self.open_dialog)
+            btn.clicked.connect(self.open_enh_dialog)
             rgb_layout.addWidget(btn)
 
         main_layout.addWidget(filters_container)
@@ -280,7 +273,7 @@ class PaintApp(QMainWindow):
                 PaintApp.builtins_caps[key],
             )
 
-    def open_dialog(self):
+    def open_enh_dialog(self):
         sender_button = self.sender()
         filter_key = sender_button.objectName()
 
@@ -290,7 +283,10 @@ class PaintApp(QMainWindow):
         )
 
         dialog = uic.loadUi("ui/inhance_dialog.ui")
-        dialog.setWindowTitle("Изменение фильтра")
+        chan_type = ["фильтра", "цветового канала"][
+            sender_button.text() in "RGBA"
+        ]
+        dialog.setWindowTitle("Изменение " + chan_type)
 
         original_img = self.original_before_dialog
         if original_img:
@@ -342,3 +338,6 @@ class PaintApp(QMainWindow):
             image_after = image_before.enhance(normalized_value)
             self.add_pil_to_scene(image_after)
             print(f"Фильтр {filter_key} применен со значением: {value}")
+
+    def change_color(self, value, channel):
+        pass
