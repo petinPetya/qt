@@ -49,106 +49,90 @@ filter_button_style = """
 
 
 """
-__all__ = "TestsOFForm"
+{% extends "base.html" %}
+<body>
+    {% block kot %}
+    <div class="container">
+        <form method="post" class="feedback-form">
+            {% csrf_token %}
+            
+            <h2 class="form-title">Форма обратной связи</h2>
+            <!-- Цикл по видимым полям формы -->
+            {% for field in form.visible_fields %}
+                <div class="mb-3 {% if field.field.required %}required{% endif %}">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    
+                    <!-- Поле ввода -->
+                    {{ field }}
+                    
+                    <!-- Подсказка (help text) -->
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    
+                    <!-- Ошибки поля -->
+                    {% if field.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in field.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
 
-import os
-from pathlib import Path
-import tempfile
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="reset" class="btn btn-outline-secondary me-md-2">Очистить</button>
+                <button type="submit" class="btn btn-primary">Отправить</button>
+            </div>
+        </form>
+    </div>
 
-from django.test import TestCase, Client
-from django.urls import reverse
+    <!-- Стили для полей формы -->
+    <style>
+        .feedback-form .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 15px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
 
-from feedback.forms import FeedbackForm
+        .feedback-form .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
 
+        .feedback-form .required .form-label {
+            font-weight: 600;
+        }
 
-class TestsOFForm(TestCase):
-    def setUp(self):
-        self.client = Client()
+        .feedback-form textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+        }
 
-    def test_form_in(self):
-        response = self.client.get(reverse("feedback:feedback"))
-        self.assertIn("form", response.context)
+        .feedback-form .form-title {
+            color: #343a40;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 700;
+        }
 
-    def test_form_labels_and_help_text(self):
-        form = FeedbackForm()
-        self.assertEqual(form.fields["name"].label, "Имя")
-        self.assertEqual(form.fields["mail"].label, "Почта")
-        self.assertEqual(form.fields["text"].label, "Текстовое поле")
-
-    def test_form_submission_redirect(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            original_cwd = Path.cwd()
-            try:
-                os.chdir(temp_dir)
-
-                data = {
-                    "name": "Test User",
-                    "mail": "test@example.com",
-                    "text": "Test message content",
-                }
-
-                response = self.client.post(
-                    reverse("homepage:home"),
-                    data,
-                    follow=True,
-                )
-                self.assertEqual(response.status_code, 200)
-
-            finally:
-                os.chdir(original_cwd)
-
-    def test_email_file_creation(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            original_cwd = Path.cwd()
-            try:
-                os.chdir(temp_dir)
-                mail_dir = Path("feedback/send_mail")
-                mail_dir.mkdir(parents=True, exist_ok=True)
-
-                data = {
-                    "name": "Test User",
-                    "mail": "test@example.com",
-                    "text": "Test message content from form",
-                }
-
-                self.client.post(reverse("feedback:feedback"), data)
-                self.assertTrue(os.path.exists("feedback/send_mail"))
-                files = os.listdir("feedback/send_mail")
-                self.assertEqual(len(files), 1)
-                filepath = Path("feedback/send_mail") / files[0]
-                with filepath.open("r", encoding="utf-8") as f:
-                    content = f.read()
-                    self.assertIn("Test message content from form", content)
-                    self.assertIn("test@example.com", content)
-
-            finally:
-                os.chdir(original_cwd)
-
-    def test_feedback_form_status_ok_on_invalid_data(self):
-        invalid_data = {"name": "", "text": "", "mail": "invalid"}
-        response = self.client.post(
-            reverse("feedback:feedback"),
-            data=invalid_data,
-        )
-        self.assertEqual(response.status_code, 200)
-
-    def test_feedback_form_has_errors(self):
-        invalid_data = {"name": "", "text": "", "mail": "invalid"}
-        response = self.client.post(
-            reverse("feedback:feedback"),
-            data=invalid_data,
-        )
-        form = response.context["form"]
-        self.assertTrue(form.errors)
-
-    def test_feedback_form_error_fields(self):
-        invalid_data = {"name": "", "text": "", "mail": "invalid"}
-        response = self.client.post(
-            reverse("feedback:feedback"),
-            data=invalid_data,
-        )
-        form = response.context["form"]
-        self.assertIn("name", form.errors)
-        self.assertIn("text", form.errors)
-        self.assertIn("mail", form.errors)
+        .feedback-form {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    {% endblock %}
+</body>
+</html>
 """
