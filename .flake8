@@ -1,7 +1,7 @@
 [flake8]
 import-order-style = google
 import-order-group-names = third-party, first-party
-application-import-names = canvas, models, qssstyles
+application-import-names = canvas, models, qssstyles, ai_functions, reg
 ignore = W503, F403, F405, N802
 inline-quotes = "
 exclude = 
