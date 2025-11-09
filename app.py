@@ -1,3 +1,6 @@
+from datetime import datetime
+import os
+
 from PIL import Image, ImageEnhance
 from PyQt6 import uic
 from PyQt6.QtCore import *
@@ -7,7 +10,7 @@ import pytesseract
 
 from ai_functions import OCRThread
 from canvas.canvas import *
-from models.models import Login, Register
+from models.models import Login, Register, Session, Work
 from qssstyles.styles import *
 
 pytesseract.pytesseract.tesseract_cmd = (
@@ -51,7 +54,7 @@ class PaintApp(QMainWindow):
         left_widget.setLayout(left_layout)
 
         # Title
-        self.title = QLabel("ЫЫЫЫЫЫ!!")
+        self.title = QLabel("QPain_t")
         self.title.setStyleSheet(text_style_title)
         self.title.setFixedHeight(40)
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -67,7 +70,7 @@ class PaintApp(QMainWindow):
 
         # Создаем холст справа
         self.canvas = Canvas()
-        main_layout.addWidget(self.canvas, 1)  # 1 - коэффициент растяжения
+        main_layout.addWidget(self.canvas, 1)
 
         # Создаем вкладки
         self.create_file_tab()
@@ -76,11 +79,9 @@ class PaintApp(QMainWindow):
         self.create_ocr_tab()
 
     def start(self):
-        """Метод для открытия формы аутентификации"""
         self.show_auth_dialog()
 
     def show_auth_dialog(self):
-        """Показывает диалог аутентификации (регистрация/логин)"""
         login_dialog = Login(self)
         if login_dialog.exec() == QDialog.DialogCode.Accepted:
             self.current_user = login_dialog.get_current_user()
@@ -103,6 +104,7 @@ class PaintApp(QMainWindow):
 
     def update_user_info(self):
         if self.current_user:
+            self.arch_btn.setEnabled(True)
             self.user_info_label.setText(
                 f"Пользователь: {self.current_user.name}",
             )
@@ -124,10 +126,14 @@ class PaintApp(QMainWindow):
         open_btn.clicked.connect(self.open_file)
         layout.addWidget(open_btn)
 
+        save_btn = QPushButton("Сохранить")
+        save_btn.clicked.connect(self.save_file)
+        layout.addWidget(save_btn)
+
         # Кнопка входа/регистрации
-        auth_btn = QPushButton("Вход / Регистрация")
-        auth_btn.clicked.connect(self.start)
-        layout.addWidget(auth_btn)
+        self.auth_btn = QPushButton("Вход / Регистрация")
+        self.auth_btn.clicked.connect(self.start)
+        layout.addWidget(self.auth_btn)
 
         # Информация о пользователе
         self.user_info_label = QLabel("Не авторизован")
@@ -138,6 +144,17 @@ class PaintApp(QMainWindow):
         exit_btn = QPushButton("Выход")
         exit_btn.clicked.connect(QApplication.instance().quit)
         layout.addWidget(exit_btn)
+
+        self.arch_btn = QPushButton("Другие работы")
+        self.arch_btn.clicked.connect(self.open_user_works)
+        if not self.current_user:
+            self.arch_btn.setEnabled(False)
+        layout.addWidget(self.arch_btn)
+
+        self.view_works_btn = QPushButton("Мои работы")
+        self.view_works_btn.clicked.connect(self.open_user_works)
+        self.view_works_btn.setEnabled(False)
+        layout.addWidget(self.view_works_btn)
 
         layout.addStretch()
         file_tab.setLayout(layout)
@@ -269,8 +286,141 @@ class PaintApp(QMainWindow):
         if file_path:
             self.canvas.load_image(file_path)
 
+    def save_file(self):
+        # Проверяем авторизацию
+        if not self.current_user:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Для сохранения работы необходимо авторизоваться!",
+            )
+            self.start()  # Предлагаем авторизоваться
+            return
+
+        # Получаем изображение с холста
+        scene_image = self.qgraphicsview_to_pil(self.canvas.scene)
+        if not scene_image:
+            QMessageBox.warning(
+                self,
+                "Предупреждение",
+                "На холсте нет изображения для сохранения!",
+            )
+            return
+
+        # Загружаем диалог
+        dialog = uic.loadUi("ui/presave.ui")
+        dialog.setWindowTitle("Сохранение работы")
+
+        # Устанавливаем текущую дату и имя пользователя по умолчанию
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        default_name = f"Работа_{self.current_user.name}_{current_time}"
+        dialog.lineEdit.setText(default_name)
+
+        # Отображаем превью изображения
+        qimage = self.pil_to_qimage(scene_image)
+        pixmap = QPixmap.fromImage(qimage)
+
+        # Масштабируем превью для QLabel
+        label_size = dialog.label.size()
+        scaled_pixmap = pixmap.scaled(
+            label_size.width(),
+            label_size.height(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        dialog.label.setPixmap(scaled_pixmap)
+        dialog.label.setScaledContents(False)
+
+        # Добавляем информацию о пользователе в textBrowser
+        user_info = f"Пользователь: {self.current_user.name}\n"
+        user_info += f"Email: {self.current_user.email}\n"
+        user_info += f"Дата создания: {current_time}\n\n"
+        user_info += "Введите описание работы:"
+        dialog.textBrowser.setText(user_info)
+
+        result = dialog.exec()
+
+        if result == QDialog.DialogCode.Accepted:
+            work_name = dialog.lineEdit.text().strip()
+            work_description = (
+                dialog.textBrowser.toPlainText()
+                .split("Введите описание работы:")[-1]
+                .strip()
+            )
+
+            if not work_name:
+                QMessageBox.warning(
+                    self,
+                    "Ошибка",
+                    "Название работы не может быть пустым!",
+                )
+                return
+
+            # Сохраняем в базу данных
+            self.save_work_to_db(work_name, work_description, scene_image)
+
+    def save_work_to_db(self, work_name, work_description, image):
+        session = Session()
+
+        try:
+            # Проверяем, существует ли работа с таким именем
+            existing_work = (
+                session.query(Work).filter(Work.name == work_name).first()
+            )
+            if existing_work:
+                QMessageBox.warning(
+                    self,
+                    "Ошибка",
+                    "Работа с таким названием уже существует!",
+                )
+                return
+
+            # Конвертируем PIL Image в bytes для сохранения в базу
+            from io import BytesIO
+
+            image_bytes = BytesIO()
+            image.save(image_bytes, format="PNG")
+            image_data = image_bytes.getvalue()
+
+            # Создаем новую работу
+            new_work = Work(
+                name=work_name,
+                description=work_description,
+                creator_id=self.current_user.id,
+                image_data=image_data,  # Сохраняем изображение в базу
+                image_filename=f"{work_name}.png",
+            )
+
+            session.add(new_work)
+            session.commit()
+
+            os.makedirs("works", exist_ok=True)
+            image_filename = f"works/work_{new_work.id}.png"
+            image.save(image_filename, "PNG")
+
+            QMessageBox.information(
+                self,
+                "Успех",
+                f"Работа '{work_name}' успешно сохранена!",
+            )
+
+            print(f"Работа сохранена: {work_name}, ID: {new_work.id}")
+
+        except ValueError as e:
+            print("val")
+            QMessageBox.warning(self, "Ошибка валидации", str(e))
+        except Exception as e:
+            print("cri")
+            QMessageBox.critical(
+                self,
+                "Ошибка",
+                f"Не удалось сохранить работу: {str(e)}",
+            )
+            session.rollback()
+        finally:
+            session.close()
+
     def create_ocr_tab(self):
-        """Создаем упрощенную вкладку OCR"""
         ocr_tab = QWidget()
         layout = QVBoxLayout(ocr_tab)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -333,7 +483,6 @@ class PaintApp(QMainWindow):
         self.tab_widget.addTab(ocr_tab, "OCR")
 
     def recognize_from_canvas(self):
-        """Распознает текст с текущего холста"""
         scene_image = self.qgraphicsview_to_pil(self.canvas.scene)
         if not scene_image:
             QMessageBox.warning(
@@ -356,7 +505,6 @@ class PaintApp(QMainWindow):
         self.ocr_thread.start()
 
     def on_ocr_finished(self, text):
-        """Обрабатывает завершение распознавания"""
         self.ocr_progress_bar.setVisible(False)
         self.recognize_btn.setEnabled(True)
         self.ocr_text_browser.setPlainText(text)
@@ -375,7 +523,6 @@ class PaintApp(QMainWindow):
         )
 
     def on_ocr_error(self, error_message):
-        """Обрабатывает ошибки распознавания"""
         self.ocr_progress_bar.setVisible(False)
         self.recognize_btn.setEnabled(True)
         QMessageBox.critical(
@@ -386,7 +533,6 @@ class PaintApp(QMainWindow):
         self.ocr_info_label.setText("Ошибка распознавания")
 
     def save_ocr_text(self):
-        """Сохраняет распознанный текст в файл"""
         text = self.ocr_text_browser.toPlainText()
         if not text.strip():
             return
@@ -411,7 +557,6 @@ class PaintApp(QMainWindow):
                 )
 
     def clear_ocr_text(self):
-        """Очищает область с текстом"""
         self.ocr_text_browser.clear()
         self.ocr_save_btn.setEnabled(False)
         self.ocr_info_label.setText("Текст очищен")
@@ -420,13 +565,28 @@ class PaintApp(QMainWindow):
         if scene is None:
             return None
 
-        rect = scene.sceneRect()
-        image = QImage(rect.size().toSize(), QImage.Format.Format_ARGB32)
+        # Получаем видимую область сцены в координатах viewport
+        view = self.canvas.view
+        viewport_rect = view.viewport().rect()
+
+        top_left = view.mapToScene(viewport_rect.topLeft())
+        bottom_right = view.mapToScene(viewport_rect.bottomRight())
+        visible_rect = QRectF(top_left, bottom_right)
+
+        print(f"Visible scene rect: {visible_rect}")
+
+        # Создаем QImage с размером видимой области
+        image_size = visible_rect.size().toSize()
+        image = QImage(image_size, QImage.Format.Format_ARGB32)
         image.fill(Qt.GlobalColor.white)
+
         painter = QPainter(image)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        scene.render(painter)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        scene.render(painter, QRectF(image.rect()), visible_rect)
         painter.end()
+
         # Конвертируем QImage в PIL
         image = image.convertToFormat(QImage.Format.Format_RGBA8888)
         ptr = image.bits()
@@ -461,8 +621,9 @@ class PaintApp(QMainWindow):
         imgq = imgp.toqimage()
         pixmap = QPixmap.fromImage(imgq)
         item = QGraphicsPixmapItem(pixmap)
-        item.setPos(0, 0)
 
+        # ВАЖНО: Сбрасываем позицию и устанавливаем в (0, 0)
+        item.setPos(-20, -100)
         self.canvas.scene.clear()
         self.canvas.scene.addItem(item)
 
@@ -513,6 +674,7 @@ class PaintApp(QMainWindow):
 
             qimage = self.pil_to_qimage(original_img)
             pixmap = QPixmap.fromImage(qimage)
+            print(pixmap.size())
             dialog.label.setPixmap(pixmap)
             dialog.label.setScaledContents(True)
 
@@ -558,7 +720,6 @@ class PaintApp(QMainWindow):
             print(f"Фильтр {filter_key} применен со значением: {value}")
 
     def open_col_dialog(self):
-        """Открывает диалоговое окно для настройки цветовых каналов"""
         # Сохраняем оригинальное изображение
         self.original_before_dialog = self.qgraphicsview_to_pil(
             self.canvas.scene,
@@ -699,6 +860,7 @@ class PaintApp(QMainWindow):
             print(
                 f"Каналы: R={red_val}, G={green_val}, B={blue_val}",
             )
+            print("aaaaaa")
         else:
             # Восстанавливаем оригинал
             if hasattr(self, "original_before_dialog"):
@@ -706,7 +868,6 @@ class PaintApp(QMainWindow):
                 print("Изменения цветовых каналов отменены")
 
     def apply_color_channels(self, image, red_value, green_value, blue_value):
-        """Применяет изменения к цветовым каналам через PIL"""
         if image.mode != "RGB":
             image = image.convert("RGB")
 
@@ -732,3 +893,207 @@ class PaintApp(QMainWindow):
 
         # Объединяем каналы обратно
         return Image.merge("RGB", (r_modified, g_modified, b_modified))
+
+    def open_user_works(self):
+        if not self.current_user:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Для просмотра работ необходимо авторизоваться!",
+            )
+            self.start()
+            return
+
+        # Создаем диалоговое окно
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Работы пользователя {self.current_user.name}")
+        dialog.setMinimumSize(700, 500)
+
+        layout = QVBoxLayout(dialog)
+
+        # Список работ
+        layout.addWidget(QLabel("Ваши работы:"))
+        self.works_list = QListWidget()
+        layout.addWidget(self.works_list)
+
+        # Область для отображения деталей работы
+        details_widget = QWidget()
+        details_layout = QVBoxLayout(details_widget)
+
+        # Превью изображения
+        self.work_preview_label = QLabel()
+        self.work_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.work_preview_label.setMinimumSize(300, 200)
+        self.work_preview_label.setStyleSheet(
+            "border: 1px solid #ccc; background-color: #f8f9fa;",
+        )
+        self.work_preview_label.setText("Выберите работу для просмотра")
+        details_layout.addWidget(self.work_preview_label)
+
+        # Описание работы
+        details_layout.addWidget(QLabel("Описание:"))
+        self.work_description_browser = QTextBrowser()
+        self.work_description_browser.setMaximumHeight(150)
+        details_layout.addWidget(self.work_description_browser)
+
+        layout.addWidget(details_widget)
+
+        # Кнопки
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Open
+            | QDialogButtonBox.StandardButton.Close,
+        )
+        button_box.accepted.connect(lambda: self.load_selected_work(dialog))
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+
+        # Загружаем работы пользователя
+        self.load_user_works()
+
+        # Подключаем выбор элемента в списке
+        self.works_list.currentItemChanged.connect(self.on_work_selected)
+
+        dialog.exec()
+
+    def load_user_works(self):
+        session = Session()
+        try:
+            works = (
+                session.query(Work)
+                .filter(Work.creator_id == self.current_user.id)
+                .all()
+            )
+
+            self.works_list.clear()
+            for work in works:
+                item = QListWidgetItem(work.name)
+                item.setData(Qt.ItemDataRole.UserRole, work.id)
+                self.works_list.addItem(item)
+
+            if not works:
+                self.works_list.addItem("У вас пока нет сохраненных работ")
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Ошибка", f"Не удалось загрузить работы: {str(e)}",
+            )
+        finally:
+            session.close()
+
+    def on_work_selected(self, current, previous):
+        if not current or not current.data(Qt.ItemDataRole.UserRole):
+            return
+
+        work_id = current.data(Qt.ItemDataRole.UserRole)
+        session = Session()
+        try:
+            work = session.query(Work).filter(Work.id == work_id).first()
+            if work:
+                # Обновляем описание
+                self.work_description_browser.setPlainText(
+                    work.description or "Описание отсутствует",
+                )
+
+                # Попытка загрузить изображение
+                self.load_work_image(work)
+
+        except Exception as e:
+            print(f"Ошибка при загрузке деталей работы: {e}")
+        finally:
+            session.close()
+
+    def load_work_image(self, work):
+        try:
+            # Попытка загрузить из файла (старый способ)
+            image_filename = f"works/work_{work.id}.png"
+            if os.path.exists(image_filename):
+                pixmap = QPixmap(image_filename)
+                if not pixmap.isNull():
+                    self.display_work_image(pixmap)
+                    return
+
+            # Если файла нет, пробуем загрузить из базы данных
+            if work.image_data:
+                pixmap = QPixmap()
+                pixmap.loadFromData(work.image_data)
+                if not pixmap.isNull():
+                    self.display_work_image(pixmap)
+                    return
+
+            # Если изображение не найдено
+            self.work_preview_label.setText("Изображение не найдено")
+
+        except Exception as e:
+            print(f"Ошибка при загрузке изображения: {e}")
+            self.work_preview_label.setText("Ошибка загрузки изображения")
+
+    def display_work_image(self, pixmap):
+        scaled_pixmap = pixmap.scaled(
+            self.work_preview_label.width(),
+            self.work_preview_label.height(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self.work_preview_label.setPixmap(scaled_pixmap)
+
+    def load_selected_work(self, dialog):
+        current_item = self.works_list.currentItem()
+        if not current_item or not current_item.data(Qt.ItemDataRole.UserRole):
+            QMessageBox.warning(
+                self, "Ошибка", "Выберите работу для загрузки!",
+            )
+            return
+
+        work_id = current_item.data(Qt.ItemDataRole.UserRole)
+        session = Session()
+        try:
+            work = session.query(Work).filter(Work.id == work_id).first()
+            if work:
+                # Попытка загрузить изображение на холст
+                if self.load_work_to_canvas(work):
+                    QMessageBox.information(
+                        self,
+                        "Успех",
+                        f"Работа '{work.name}' загружена на холст!",
+                    )
+                    dialog.accept()
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Ошибка",
+                        "Не удалось загрузить изображение работы!",
+                    )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Ошибка",
+                f"Не удалось загрузить работу: {str(e)}",
+            )
+        finally:
+            session.close()
+
+    def load_work_to_canvas(self, work):
+        try:
+            # Попытка загрузить из файла
+            image_filename = f"works/work_{work.id}.png"
+            if os.path.exists(image_filename):
+                self.canvas.load_image(image_filename)
+                return True
+
+            # Попытка загрузить из базы данных
+            if work.image_data:
+                # Создаем временный файл из данных базы
+                temp_file = f"temp_work_{work.id}.png"
+                with open(temp_file, "wb") as f:
+                    f.write(work.image_data)
+                self.canvas.load_image(temp_file)
+                # Удаляем временный файл
+                os.remove(temp_file)
+                return True
+
+            return False
+
+        except Exception as e:
+            print(f"Ошибка при загрузке работы на холст: {e}")
+            return False

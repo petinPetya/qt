@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
@@ -8,9 +10,18 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QVBoxLayout,
 )
-from sqlalchemy import Column, create_engine, Integer, String
+from sqlalchemy import (
+    Column,
+    create_engine,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+)
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, validates
+from sqlalchemy.orm import relationship, sessionmaker, validates
+
 
 Base = declarative_base()
 engine = create_engine("sqlite:///users.db", echo=True)
@@ -25,7 +36,8 @@ class User(Base):
     name_normalized = Column(String(50), unique=True, nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password = Column(String(30), nullable=False)
-    description_length = Column(Integer, default=70)
+
+    works = relationship("Work", backref="creator")
 
     @validates("password")
     def checkPassword(self, key, password):
@@ -48,6 +60,29 @@ class User(Base):
 
     def __repr__(self):
         return f"User(id={self.id}, name='{self.name}', email='{self.email}')"
+
+
+class Work(Base):
+    __tablename__ = "works"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), unique=True, nullable=False)
+    name_normalized = Column(String(50), unique=True, nullable=False)
+    description = Column(Text)
+    creator_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(
+        String(20),
+        default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    image_data = Column(LargeBinary)  # Поле для хранения изображения
+    image_filename = Column(String(255))  # Имя файла изображения
+
+    @validates("name")
+    def checkName(self, key, name):
+        if not name or not name[0].isalpha():
+            raise ValueError("Название работы должно начинаться с буквы!")
+        self.name_normalized = name.lower()
+        return name
 
 
 Base.metadata.create_all(engine)

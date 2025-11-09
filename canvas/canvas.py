@@ -8,7 +8,7 @@ from canvas.scene import CustomGraphicsView, FixedGraphicsScene
 class Canvas(QWidget):
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(600, 400)
+        self.setMinimumSize(600, 404)
 
         # Настройки кисти
         self.pen_color = QColor("#000000")
@@ -23,7 +23,8 @@ class Canvas(QWidget):
         self.color = 1
 
         # Холст
-        self.scene = FixedGraphicsScene(0, 0, 600, 330, self)
+        self.scene = FixedGraphicsScene(0, 0, 840, 567, self)
+        self.scene.setSceneRect(0, 0, 840, 567)
         self.view = CustomGraphicsView(
             self.scene,
             self,
@@ -73,3 +74,12 @@ class Canvas(QWidget):
     def handle_mouse_release(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drawing = False
+
+    def get_visible_size(self):
+        visible_rect = self.view.mapToScene(
+            self.view.viewport().rect(),
+        ).boundingRect()
+        return visible_rect.size()
+
+    def get_view_size(self):
+        return self.view.size()
