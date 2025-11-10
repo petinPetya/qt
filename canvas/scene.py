@@ -25,7 +25,9 @@ class CustomGraphicsView(QGraphicsView):
             self.scene.sceneRect(),
             Qt.AspectRatioMode.KeepAspectRatio,
         )
-
+        self.setAlignment(
+            Qt.AlignmentFlag.AlignLeft,
+        )
         self.setMouseTracking(True)
 
     def mousePressEvent(self, event):

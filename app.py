@@ -36,11 +36,15 @@ class PaintApp(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Govno")
+        self.setWindowTitle("QPain_t 1.0")
         self.setGeometry(100, 100, 1000, 600)
 
         # Текущий пользователь
         self.current_user = None
+
+        # self.history = []  # Список состояний изображений - это на потом)
+        # self.current_history_index = -1  # Текущая позиция в истории
+        self.max_history_size = 30
 
         # Главный виджет
         central_widget = QWidget()
@@ -151,16 +155,9 @@ class PaintApp(QMainWindow):
             self.arch_btn.setEnabled(False)
         layout.addWidget(self.arch_btn)
 
-        self.view_works_btn = QPushButton("Мои работы")
-        self.view_works_btn.clicked.connect(self.open_user_works)
-        self.view_works_btn.setEnabled(False)
-        layout.addWidget(self.view_works_btn)
-
         layout.addStretch()
         file_tab.setLayout(layout)
         self.tab_widget.addTab(file_tab, "Файл")
-
-    # ОСТАЛЬНЫЕ МЕТОДЫ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ
 
     def create_tools_tab(self):
         tools_tab = QWidget()
@@ -204,7 +201,7 @@ class PaintApp(QMainWindow):
         layout.addWidget(toolbar)
 
         # Кнопки стилей пера
-        change_cap_buttons = QVBoxLayout()  # Вертикальное расположение
+        change_cap_buttons = QVBoxLayout()
         change_cap_buttons.setSpacing(5)
 
         setattr(self, "st1", QPushButton())
@@ -623,7 +620,7 @@ class PaintApp(QMainWindow):
         item = QGraphicsPixmapItem(pixmap)
 
         # ВАЖНО: Сбрасываем позицию и устанавливаем в (0, 0)
-        item.setPos(-20, -100)
+        item.setPos(10, -100)
         self.canvas.scene.clear()
         self.canvas.scene.addItem(item)
 
@@ -975,7 +972,9 @@ class PaintApp(QMainWindow):
 
         except Exception as e:
             QMessageBox.critical(
-                self, "Ошибка", f"Не удалось загрузить работы: {str(e)}",
+                self,
+                "Ошибка",
+                f"Не удалось загрузить работы: {str(e)}",
             )
         finally:
             session.close()
@@ -1040,7 +1039,9 @@ class PaintApp(QMainWindow):
         current_item = self.works_list.currentItem()
         if not current_item or not current_item.data(Qt.ItemDataRole.UserRole):
             QMessageBox.warning(
-                self, "Ошибка", "Выберите работу для загрузки!",
+                self,
+                "Ошибка",
+                "Выберите работу для загрузки!",
             )
             return
 

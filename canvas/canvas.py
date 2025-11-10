@@ -32,7 +32,6 @@ class Canvas(QWidget):
         self.view.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.view.setInteractive(False)
 
-        # Состояние рисования
         self.drawing = False
         self.last_point = QPointF()
 
